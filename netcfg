@@ -1,0 +1,217 @@
+#!/bin/bash
+#by Sinlong
+
+#设置内部网络IP段
+LANIP=192.168.88.0/24
+#获取N2N edge 进程的Pid
+N2NPid=`ps -ef|grep edge|grep -v grep|awk '{print $2}'`
+#设置N2N网络的认证节点
+SUPERNODE=103.196.153.133:56698
+#设置N2N VPN 的IP
+N2NCli=10.1.2.5
+#设置N2N的netmask
+N2NNETMASK=255.255.255.0
+#配置 N2N VPN网络的网口
+N2NGW=10.1.2.254
+#生成随机的mac地址
+MAC=`echo -n 00; dd bs=1 count=5 if=/dev/random 2>/dev/null |hexdump -v -e '/1 ":%02X"'`
+#设置通过N2N网络访问的目标网段
+TARGER='8.8.0.0
+121.42.0.0
+74.125.0.0
+216.58.0.0'
+#测试输入的IP参数是否正确
+ARG=$1
+DSTNET=$2
+function judge_ip(){
+        #这里local $1出错，用2>/dev/null屏蔽掉错误，暂未发现影响输出结果
+        local $1 2>/dev/null
+        TMP_TXT=/tmp/iptmp.txt
+        echo $1 > ${TMP_TXT}
+        IPADDR=`grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' ${TMP_TXT}`
+        #判断有没有符合***.***.***.***规则的IP
+        if [ ! -z "${IPADDR}" ];then
+                local j=0;
+                #通过循环来检测每个点之前的数值是否符合要求
+                for ((i=1;i<=4;i++))
+                do
+                        local IP_NUM=`echo "${IPADDR}" |awk -F. "{print $"$i"}"`
+                        #判断IP_NUM是否在0与255之间
+                        if [ "${IP_NUM}" -ge 0 -a "${IP_NUM}" -le 255 ];then
+                                ((j++));
+                        else
+                                return 1
+                        fi
+                done
+                #通过j的值来确定是否继续匹配规则，循环四次，若都正确j=4.
+                #if [ "$j" -eq 4 ];then
+			if [ "$j" -eq 4 ];then
+					#符合要求返回 0信号；
+                      return 0
+                else
+					#不符合要求返回 1 信号；
+                      return 1
+            fi
+        else
+                return 1
+        fi
+}
+##
+
+case $ARG in
+	conn)
+		echo -e "\nWIFI connection: \n ----------------------------------------------------------------------------------"
+		echo " edit macAddr"
+		ifconfig wlan0 down
+		ifconfig wlan0 hw ether $MAC
+		echo " start wlan0"
+		ifup wlan0
+		echo " to wifi AP connection"
+		iwconfig wlan0 essid ChinaUnicom
+		echo " Get IP via DHCP"
+		dhclient wlan0
+		echo " set firewall forward"
+		iptables -t nat -A POSTROUTING -s $LANIP -o wlan0 -j MASQUERADE
+		iptables -A FORWARD -p udp -s $LANIP -o wlan0 -m state --state ESTABLISHED -j ACCEPT
+		iptables -A FORWARD -p tcp -s $LANIP -o wlan0 -m state --state ESTABLISHED -j ACCEPT
+	;;
+	
+	disnet)
+		echo -e "\nWIFI connection off: \n ----------------------------------------------------------------------------------"
+		echo " off essid"
+		iwconfig wlan0 essid off
+		echo " down wlan0"
+		ifdown wlan0
+		echo " set firewall delete rule"
+		iptables -D FORWARD -p udp -s $LANIP -o wlan0 -m state --state ESTABLISHED -j ACCEPT
+		iptables -D FORWARD -p tcp -s $LANIP -o wlan0 -m state --state ESTABLISHED -j ACCEPT	
+	;;
+	
+	show)
+		echo -e "\nWIFI Status: \n ----------------------------------------------------------------------------------"
+		iwconfig wlan0
+		echo -e "\n IP Info: \n ----------------------------------------------------------------------------------"
+		ifconfig wlan0
+		echo -e "\n Routeing status Info: \n ----------------------------------------------------------------------------------"
+		route -n
+		echo -e "\n Firewall rule Info: \n ----------------------------------------------------------------------------------"
+		iptables -v -n -t nat -L
+		#N2N VPN status check
+		if [ -z "N2NPid" ];then
+			echo -e "\n N2N VPN status : Disable! \n ----------------------------------------------------------------------------------"
+		else
+			echo -e "\n N2N VPN status : Enable! \n ----------------------------------------------------------------------------------"
+		fi
+		#show tor net forward
+		echo -e "\n Show to tor net forward: \n ----------------------------------------------------------------------------------"
+		iptables -t nat -v -n -L PREROUTING
+		#login info
+		echo -e "\n Login Info: \n ----------------------------------------------------------------------------------"
+		curl -L --config /opt/bin/cu.conf "http://202.106.46.37/login.do?callback=jQuery17109679617492947727_1455520963393&username=15652539452&password=850343&passwordType=6&wlanuserip=&userOpenAddress=bj&checkbox=0&basname=&setUserOnline=&sap=&macAddr=&bandMacAuth=0&isMacAuth=&basPushUrl=http%253A%252F%252F202.106.46.37%252F&passwordkey=&_=1455521279832"|awk -F "," '{print "Login status:",$9}'>/tmp/a
+		sed 's/\"//g' /tmp/a
+		echo " "
+	;;
+	
+	login)
+		echo -e "\n Login to ChinaUnicom net: \n ----------------------------------------------------------------------------------"
+		curl -L --config /opt/bin/cu.conf "http://202.106.46.37/login.do?callback=jQuery17109679617492947727_1455520963393&username=15652539452&password=850343&passwordType=6&wlanuserip=&userOpenAddress=bj&checkbox=0&basname=&setUserOnline=&sap=&macAddr=&bandMacAuth=0&isMacAuth=&basPushUrl=http%253A%252F%252F202.106.46.37%252F&passwordkey=&_=1455521279832"|awk -F "," '{print "To login CU",$9}'>/tmp/a
+		sed 's/\"//g' /tmp/a
+		echo " "
+	;;
+	
+	tor)
+		if [ -n "start" ];then
+			/etc/init.d/tor start
+		elif [ -n "stop" ];then
+			/etc/init.d/tor stop
+		elif [ -n "status" ];then
+			/etc/init.d/tor status
+		elif [ -n "add" ];then
+			if [ -n "$DSTNET" ];then
+				judge_ip $DSTNET;
+				r=`echo $?`
+				if [ "$r" -eq 0 ];then
+					iptables -t nat -A PREROUTING -p tcp -d $DSTNET/24 --dport 80 -j REDIRECT --to-port 8118
+					iptables -t nat -A PREROUTING -p tcp -d $DSTNET/24 --dport 443 -j REDIRECT --to-port 8118
+				else
+					$0
+				fi
+			else 
+				$0
+			fi
+			
+		elif [ -n "del" ];then
+			if [ -n "$DSTNET" ];then
+				judge_ip $DSTNET;
+				r=`echo $?`
+				if [ "$r" -eq 0 ];then
+					iptables -t nat -D PREROUTING -p tcp -d $DSTNET/24 --dport 80 -j REDIRECT --to-port 8118
+					iptables -t nat -D PREROUTING -p tcp -d $DSTNET/24 --dport 443 -j REDIRECT --to-port 8118
+				else
+					$0
+				fi
+			else
+				$0
+			fi
+		elif [ -n "show" ];then
+			echo -e "\n --Tor forwarded through network segment------------------------------------------"
+			iptables -t nat -v -n -L PREROUTING
+		fi
+	;;
+	
+	n2n)
+		if [ -n "start" ];then
+			edge -d n2n0 -a $N2NCli -c think -k S0laris123 -s $N2NNETMASK -l $SUPERNODE -r -f
+			iptables -t nat -A POSTROUTING -s $LANIP -o n2n0 -j MASQUERADE
+			sed -i ''-e' 1i nameserver 8.8.8.8 \nnameserver 8.8.4.4' /etc/resolv.conf
+			for i in $TARGER
+				do
+					route add -net $i netmask 255.255.0.0 gw $N2NGW
+					echo "Add routeing to $i done !"
+				done
+		elif [ -n "stop" ];then
+			kill -9 $N2NPid
+			sed -i -e '/8.8./d' /etc/resolv.conf
+			route del -net $i netmask 255.255.0.0
+			for i in $TARGER
+				do
+					route add -net $i netmask 255.255.0.0 gw $N2NGW
+					echo "Add routeing to $i done !"
+				done
+		fi
+	;;
+	
+	diagnosic)
+		echo -e "\n WIFI Status: \n ----------------------------------------------------------------------------------"
+		iwconfig wlan0
+		echo -e "\n IP info: \n ----------------------------------------------------------------------------------"
+		ifconfig wlan0
+		echo -e "\n routeing status info: \n ----------------------------------------------------------------------------------"
+		route -n 
+		echo -e "\n to ping gateway: \n ----------------------------------------------------------------------------------"
+		ping -c 5 `route -n|grep wlan0|grep UG|awk '{print $2}'`
+		if [ -z "$N2NPid" ];then
+			echo -e "\n N2N edge no runing: \n ----------------------------------------------------------------------------------"
+			exit 1
+		else
+			echo -e "\n N2N edge runing pid: $N2NPid"
+			echo -e " to N2N gateway: \n ----------------------------------------------------------------------------------"
+			ping -c 5 $N2NGW
+		fi
+	;;
+	
+	*)
+	echo -e "Usage: $0 {conn|disnet|show|login|tor|n2n|diagnosic} [start|stop|show|status|add|del] \n ----------------------------------------------------------------------------------"
+	echo "$0 conn		#进行网络连接"
+	echo "$0 disnet		#停止链接联通"
+	echo "$0 show		#显示网络信息"
+	echo "$0 login		#登陆联通网络"
+	echo "$0 diagnosic	#诊断网络状态"
+	echo "$0 tor [start|stop|show|status|add|del]	   #tor 参数的二级参数们，启动|停止|显示配置|状态|添加网络|删除网络"
+	echo "$0 tor add xxx.xxx.xxx.0 || del xxx.xxx.xxx.0 #add 将访问xxx.xxx.xxx.0 网段的流量转入tor网络去访问，del 从tor 网络删除xxx.xxx.xxx.0 的流量转发"
+	echo -e "$0 n2n [start|stop] #开启或停止n2n vpn 节点 \n "
+	exit 1
+	;;
+	
+esac
+exit 0
