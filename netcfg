@@ -1,28 +1,41 @@
 #!/bin/bash
-#by Sinlong
+#by H0lin1s5
 
-#设置内部网络IP段
-LANIP=192.168.88.0/24
+#设置外部网络接口，如eth0 & wlan0 ...
+WAN=
+#设置内部网络IP段，如192.168.0.0/24
+LANIP=
 #获取N2N edge 进程的Pid
 N2NPid=`ps -ef|grep edge|grep -v grep|awk '{print $2}'`
-#设置N2N网络的认证节点
-SUPERNODE=103.196.153.133:56698
-#设置N2N VPN 的IP
-N2NCli=10.1.2.5
-#设置N2N的netmask
-N2NNETMASK=255.255.255.0
-#配置 N2N VPN网络的网口
-N2NGW=10.1.2.254
+#设置N2N网络的认证节点 xxx.xxx.xxx.xxx:yyyy
+SUPERNODE=
+#设置N2N VPN 的IP,如172.16.0.10
+N2NCli=
+#设置N2N的netmask ，如255.255.255.0
+N2NNETMASK=
+#配置 N2N VPN网络的网口，如172.16.0.254
+N2NGW=
+#设置N2N认证团体名，如 public ，你可以理解为接入网络需要的用户名
+N2NC=
+#设置N2N认证密码，如xxYYkkOOw123 ....
+N2NPASS=
+#请输入ChianUnicom的用户名
+CUUSER=
+#请输入ChianUnicom的用户密码
+CUPASS=
+#请输入ChianUnicom的认证服务器IP，如果不能登陆请自行抓取认证过程的url，替换掉script中的；
+CUACC=              #202.106.46.37
 #生成随机的mac地址
 MAC=`echo -n 00; dd bs=1 count=5 if=/dev/random 2>/dev/null |hexdump -v -e '/1 ":%02X"'`
 #设置通过N2N网络访问的目标网段
 TARGER='8.8.0.0
-121.42.0.0
 74.125.0.0
+121.42.0.0
 216.58.0.0'
-#测试输入的IP参数是否正确
 ARG=$1
 DSTNET=$2
+
+#测试输入的IP参数是否正确
 function judge_ip(){
         #这里local $1出错，用2>/dev/null屏蔽掉错误，暂未发现影响输出结果
         local $1 2>/dev/null
@@ -62,36 +75,36 @@ case $ARG in
 	conn)
 		echo -e "\nWIFI connection: \n ----------------------------------------------------------------------------------"
 		echo " edit macAddr"
-		ifconfig wlan0 down
-		ifconfig wlan0 hw ether $MAC
-		echo " start wlan0"
-		ifup wlan0
+		ifconfig $WAN down
+		ifconfig $WAN hw ether $MAC
+		echo " start $WAN"
+		ifup $WAN
 		echo " to wifi AP connection"
-		iwconfig wlan0 essid ChinaUnicom
+		iwconfig $WAN essid ChinaUnicom
 		echo " Get IP via DHCP"
-		dhclient wlan0
+		dhclient $WAN
 		echo " set firewall forward"
-		iptables -t nat -A POSTROUTING -s $LANIP -o wlan0 -j MASQUERADE
-		iptables -A FORWARD -p udp -s $LANIP -o wlan0 -m state --state ESTABLISHED -j ACCEPT
-		iptables -A FORWARD -p tcp -s $LANIP -o wlan0 -m state --state ESTABLISHED -j ACCEPT
+		iptables -t nat -A POSTROUTING -s $LANIP -o $WAN -j MASQUERADE
+		iptables -A FORWARD -p udp -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT
+		iptables -A FORWARD -p tcp -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT
 	;;
 	
 	disnet)
 		echo -e "\nWIFI connection off: \n ----------------------------------------------------------------------------------"
 		echo " off essid"
-		iwconfig wlan0 essid off
-		echo " down wlan0"
-		ifdown wlan0
+		iwconfig $WAN essid off
+		echo " down $WAN"
+		ifdown $WAN
 		echo " set firewall delete rule"
-		iptables -D FORWARD -p udp -s $LANIP -o wlan0 -m state --state ESTABLISHED -j ACCEPT
-		iptables -D FORWARD -p tcp -s $LANIP -o wlan0 -m state --state ESTABLISHED -j ACCEPT	
+		iptables -D FORWARD -p udp -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT
+		iptables -D FORWARD -p tcp -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT	
 	;;
 	
 	show)
 		echo -e "\nWIFI Status: \n ----------------------------------------------------------------------------------"
-		iwconfig wlan0
+		iwconfig $WAN
 		echo -e "\n IP Info: \n ----------------------------------------------------------------------------------"
-		ifconfig wlan0
+		ifconfig $WAN
 		echo -e "\n Routeing status Info: \n ----------------------------------------------------------------------------------"
 		route -n
 		echo -e "\n Firewall rule Info: \n ----------------------------------------------------------------------------------"
@@ -107,14 +120,14 @@ case $ARG in
 		iptables -t nat -v -n -L PREROUTING
 		#login info
 		echo -e "\n Login Info: \n ----------------------------------------------------------------------------------"
-		curl -L --config /opt/bin/cu.conf "http://202.106.46.37/login.do?callback=jQuery17109679617492947727_1455520963393&username=15652539452&password=850343&passwordType=6&wlanuserip=&userOpenAddress=bj&checkbox=0&basname=&setUserOnline=&sap=&macAddr=&bandMacAuth=0&isMacAuth=&basPushUrl=http%253A%252F%252F202.106.46.37%252F&passwordkey=&_=1455521279832"|awk -F "," '{print "Login status:",$9}'>/tmp/a
+		curl -L --config /opt/bin/cu.conf "http://$CUACC/login.do?callback=jQuery17109679617492947727_1455520963393&username=$CUUSER&password=$CUPASS&passwordType=6&wlanuserip=&userOpenAddress=bj&checkbox=0&basname=&setUserOnline=&sap=&macAddr=&bandMacAuth=0&isMacAuth=&basPushUrl=http%253A%252F%252F$CUACC%252F&passwordkey=&_=1455521279832"|awk -F "," '{print "Login status:",$9}'>/tmp/a
 		sed 's/\"//g' /tmp/a
 		echo " "
 	;;
 	
 	login)
 		echo -e "\n Login to ChinaUnicom net: \n ----------------------------------------------------------------------------------"
-		curl -L --config /opt/bin/cu.conf "http://202.106.46.37/login.do?callback=jQuery17109679617492947727_1455520963393&username=15652539452&password=850343&passwordType=6&wlanuserip=&userOpenAddress=bj&checkbox=0&basname=&setUserOnline=&sap=&macAddr=&bandMacAuth=0&isMacAuth=&basPushUrl=http%253A%252F%252F202.106.46.37%252F&passwordkey=&_=1455521279832"|awk -F "," '{print "To login CU",$9}'>/tmp/a
+		curl -L --config /opt/bin/cu.conf "http://$CUACC/login.do?callback=jQuery17109679617492947727_1455520963393&username=$CUUSER&password=$CUPASS&passwordType=6&wlanuserip=&userOpenAddress=bj&checkbox=0&basname=&setUserOnline=&sap=&macAddr=&bandMacAuth=0&isMacAuth=&basPushUrl=http%253A%252F%252F$CUACC%252F&passwordkey=&_=1455521279832"|awk -F "," '{print "To login CU",$9}'>/tmp/a
 		sed 's/\"//g' /tmp/a
 		echo " "
 	;;
@@ -122,8 +135,10 @@ case $ARG in
 	tor)
 		if [ -n "start" ];then
 			/etc/init.d/tor start
+			/etc/init.d/privoxy start
 		elif [ -n "stop" ];then
 			/etc/init.d/tor stop
+			/etc/init.d/privoxy stop
 		elif [ -n "status" ];then
 			/etc/init.d/tor status
 		elif [ -n "add" ];then
@@ -161,7 +176,7 @@ case $ARG in
 	
 	n2n)
 		if [ -n "start" ];then
-			edge -d n2n0 -a $N2NCli -c think -k S0laris123 -s $N2NNETMASK -l $SUPERNODE -r -f
+			edge -d n2n0 -a $N2NCli -c $N2NC -k $N2NPASS -s $N2NNETMASK -l $SUPERNODE -r -f
 			iptables -t nat -A POSTROUTING -s $LANIP -o n2n0 -j MASQUERADE
 			sed -i ''-e' 1i nameserver 8.8.8.8 \nnameserver 8.8.4.4' /etc/resolv.conf
 			for i in $TARGER
@@ -183,13 +198,13 @@ case $ARG in
 	
 	diagnosic)
 		echo -e "\n WIFI Status: \n ----------------------------------------------------------------------------------"
-		iwconfig wlan0
+		iwconfig $WAN
 		echo -e "\n IP info: \n ----------------------------------------------------------------------------------"
-		ifconfig wlan0
+		ifconfig $WAN
 		echo -e "\n routeing status info: \n ----------------------------------------------------------------------------------"
 		route -n 
 		echo -e "\n to ping gateway: \n ----------------------------------------------------------------------------------"
-		ping -c 5 `route -n|grep wlan0|grep UG|awk '{print $2}'`
+		ping -c 5 `route -n|grep $WAN|grep UG|awk '{print $2}'`
 		if [ -z "$N2NPid" ];then
 			echo -e "\n N2N edge no runing: \n ----------------------------------------------------------------------------------"
 			exit 1
