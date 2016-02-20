@@ -16,15 +16,29 @@ apt-get update
 apt-get dist-upgrade -y
 aptitude install apt-transport-https
 apt-get install tor meek-client make gcc privoxy dnsmasq n2n -y
+#raspberry pi install tor-meek-client
+#apt-get install golang git
+#cd /opt && git clone https://git.torproject.org/pluggable-transports/meek.git
+#cd meek/meek-client
+#export GOPATH=`pwd`
+#go get
+#go build
+#cp meek-client /usr/bin/meek-client
+#
+mkdir -p /var/log/tor
+chown debian-tor:debian-tor -R /etc/tor
 
-cat <<EOF |tee /etc/tor/torrc
+
+cat <<EOF |tee /usr/share/tor/tor-service-defaults-torrc
 AutomapHostsOnResolve 1
 AutomapHostsSuffixes .exit,.onion
 SocksListenAddress 0.0.0.0:9050
 DNSPort 0.0.0.0:9053
 UseBridges 1
 ClientTransportPlugin meek exec /usr/bin/meek-client --log /var/log/tor/meek-client.log
-Bridge meek 0.0.2.0:1 url=https://az668014.vo.msecnd.net/ front=ajax.aspnetcdn.com
+Bridge meek 0.0.2.0:1 url=https://meek-reflect.appspot.com/ front=www.google.com
+Bridge meek 0.0.2.0:2 url=https://d2zfqthxsdq309.cloudfront.net/ front=a0.awsstatic.com
+Bridge meek 0.0.2.0:3 url=https://az668014.vo.msecnd.net/ front=ajax.aspnetcdn.com
 DataDirectory /etc/tor
 GeoIPFile /etc/tor/geoip
 GeoIPv6File /etc/tor/geoip6
@@ -65,7 +79,8 @@ forward 192.168.*.*/ .
 forward localhost/    .
 EOF
 
-sed -i -e '1i +add-heaer {name:mySin} \n \n/  \n' user.action
+sed -i '1i +add-heaer {name:mySin} \n \n/  \n' /etc/privoxy/user.action
+sed -i 's/#net.ipv4.ip_forward/net.ipv4.ip_forward/g' /etc/sysctl.conf
 
 cat <<EOF |tee /etc/dnsmasq.conf
 port=53
@@ -76,7 +91,6 @@ no-poll
 interface=eth0
 listen-address=0.0.0.0
 no-hosts
-addn-hosts=/etc/dnsmasq.d/hosts
 log-queries
 log-facility=/var/log/dnsmasq.log
 conf-dir=/etc/dnsmasq.d
@@ -85,7 +99,8 @@ EOF
 
 update-rc.d tor disable
 update-rc.d privoxy  disable
+#net.ipv4.ip_forward=1
 
-echo "PATH=$PATH:`pwd`"
+echo "PATH=$PATH:`pwd`" >> ~/.bashrc
 sync
 reboot
