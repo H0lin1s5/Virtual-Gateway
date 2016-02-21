@@ -2,6 +2,8 @@
 #by H0lin1s5
 
 echo "add repository"
+wget https://people.debian.org/~infinity0/apt/Ximin_Luo.pub -O - | sudo apt-key add -
+sync
 cat <<EOF | sudo tee /etc/apt/sources.list.d/dpo-infinity0.list
 deb https://people.debian.org/~infinity0/apt/ unstable contrib
 deb-src https://people.debian.org/~infinity0/apt/ unstable contrib
