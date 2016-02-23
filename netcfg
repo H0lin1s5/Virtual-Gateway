@@ -203,6 +203,8 @@ case $ARG in
 					route add -net $i netmask 255.255.0.0 gw $N2NGW
 					echo "Add routeing to $i done !"
 				done
+		else
+				$0
 		fi
 	;;
 	
@@ -223,6 +225,14 @@ case $ARG in
 			echo -e " to N2N gateway: \n ----------------------------------------------------------------------------------"
 			ping -c 5 $N2NGW
 		fi
+	;;
+	
+	auto)
+		$0 conn
+		$0 login
+		$0 n2n start
+		$0 tor start
+		$0 diagnosic
 	;;
 	
 	*)
