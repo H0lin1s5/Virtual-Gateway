@@ -30,10 +30,18 @@ MAC=`echo -n 00; dd bs=1 count=5 if=/dev/random 2>/dev/null |hexdump -v -e '/1 "
 #设置通过N2N网络访问的目标网段
 TARGER='8.8.0.0
 74.125.0.0
+111.161.0.0
 121.42.0.0
-216.58.0.0'
+123.151.0.0
+130.7.0.0
+163.177.0.0
+183.60.0.0
+183.232.0.0
+216.58.0.0
+220.249.0.0'
 ARG=$1
-DSTNET=$2
+ARG2=$2
+DSTNET=$3
 
 #测试输入的IP参数是否正确
 function judge_ip(){
@@ -133,15 +141,15 @@ case $ARG in
 	;;
 	
 	tor)
-		if [ -n "start" ];then
+		if [ "$ARG2" = "start" ];then
 			/etc/init.d/tor start
 			/etc/init.d/privoxy start
-		elif [ -n "stop" ];then
+		elif [ "$ARG2" "stop" ];then
 			/etc/init.d/tor stop
 			/etc/init.d/privoxy stop
-		elif [ -n "status" ];then
+		elif [ "$ARG2" = "status" ];then
 			/etc/init.d/tor status
-		elif [ -n "add" ];then
+		elif [ "$ARG2" = "add" ];then
 			if [ -n "$DSTNET" ];then
 				judge_ip $DSTNET;
 				r=`echo $?`
@@ -155,7 +163,7 @@ case $ARG in
 				$0
 			fi
 			
-		elif [ -n "del" ];then
+		elif [ "$ARG2" = "del" ];then
 			if [ -n "$DSTNET" ];then
 				judge_ip $DSTNET;
 				r=`echo $?`
@@ -168,14 +176,16 @@ case $ARG in
 			else
 				$0
 			fi
-		elif [ -n "show" ];then
+		elif [ "$ARG2" = "show" ];then
 			echo -e "\n --Tor forwarded through network segment------------------------------------------"
 			iptables -t nat -v -n -L PREROUTING
+		else
+				$0
 		fi
 	;;
 	
 	n2n)
-		if [ -n "start" ];then
+		if [ "$ARG2" = "start" ];then
 			edge -d n2n0 -a $N2NCli -c $N2NC -k $N2NPASS -s $N2NNETMASK -l $SUPERNODE -r -f
 			iptables -t nat -A POSTROUTING -s $LANIP -o n2n0 -j MASQUERADE
 			sed -i ''-e' 1i nameserver 8.8.8.8 \nnameserver 8.8.4.4' /etc/resolv.conf
@@ -184,7 +194,7 @@ case $ARG in
 					route add -net $i netmask 255.255.0.0 gw $N2NGW
 					echo "Add routeing to $i done !"
 				done
-		elif [ -n "stop" ];then
+		elif [ "$ARG2" = "stop" ];then
 			kill -9 $N2NPid
 			sed -i -e '/8.8./d' /etc/resolv.conf
 			route del -net $i netmask 255.255.0.0
