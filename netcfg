@@ -93,8 +93,7 @@ case $ARG in
 		dhclient $WAN
 		echo " set firewall forward"
 		iptables -t nat -A POSTROUTING -s $LANIP -o $WAN -j MASQUERADE
-		iptables -A FORWARD -p udp -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT
-		iptables -A FORWARD -p tcp -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT
+		iptables -A FORWARD -p all -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT
 	;;
 	
 	disnet)
@@ -104,8 +103,8 @@ case $ARG in
 		echo " down $WAN"
 		ifdown $WAN
 		echo " set firewall delete rule"
-		iptables -D FORWARD -p udp -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT
-		iptables -D FORWARD -p tcp -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT	
+		iptables -t nat -D POSTROUTING -s $LANIP -o $WAN -j MASQUERADE
+		iptables -D FORWARD -p all -s $LANIP -o $WAN -m state --state ESTABLISHED -j ACCEPT
 	;;
 	
 	show)
@@ -116,7 +115,7 @@ case $ARG in
 		echo -e "\n Routeing status Info: \n ----------------------------------------------------------------------------------"
 		route -n
 		echo -e "\n Firewall rule Info: \n ----------------------------------------------------------------------------------"
-		iptables -v -n -t nat -L
+		iptables -t nat -vn -L
 		#N2N VPN status check
 		if [ -z "N2NPid" ];then
 			echo -e "\n N2N VPN status : Disable! \n ----------------------------------------------------------------------------------"
@@ -125,7 +124,7 @@ case $ARG in
 		fi
 		#show tor net forward
 		echo -e "\n Show to tor net forward: \n ----------------------------------------------------------------------------------"
-		iptables -t nat -v -n -L PREROUTING
+		iptables -t nat -vn -L PREROUTING
 		#login info
 		echo -e "\n Login Info: \n ----------------------------------------------------------------------------------"
 		curl -L --config /opt/bin/cu.conf "http://$CUACC/login.do?callback=jQuery17109679617492947727_1455520963393&username=$CUUSER&password=$CUPASS&passwordType=6&wlanuserip=&userOpenAddress=bj&checkbox=0&basname=&setUserOnline=&sap=&macAddr=&bandMacAuth=0&isMacAuth=&basPushUrl=http%253A%252F%252F$CUACC%252F&passwordkey=&_=1455521279832"|awk -F "," '{print "Login status:",$9}'>/tmp/a
@@ -194,15 +193,20 @@ case $ARG in
 					route add -net $i netmask 255.255.0.0 gw $N2NGW
 					echo "Add routeing to $i done !"
 				done
+			#通过另外的网关去家庭网络或实验室网络可以写在这里；
+			#route add -net 172.16.0.0 netmask 255.255.0.0 gw 10.1.2.253
 		elif [ "$ARG2" = "stop" ];then
-			kill -9 $N2NPid
+			iptables -t nat -D POSTROUTING -s $LANIP -o n2n0 -j MASQUERADE
 			sed -i -e '/8.8./d' /etc/resolv.conf
 			route del -net $i netmask 255.255.0.0
+			kill -9 $N2NPid
 			for i in $TARGER
 				do
 					route add -net $i netmask 255.255.0.0 gw $N2NGW
 					echo "Add routeing to $i done !"
 				done
+			#删除某些特定的网络可以写在这里；
+			#route del -net 172.16.0.0 netmask 255.255.0.0 gw 10.1.2.253
 		else
 				$0
 		fi
