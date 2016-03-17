@@ -81,7 +81,7 @@ function judge_ip(){
 
 case $ARG in
 	conn)
-		echo -e "\nWIFI connection: \n ----------------------------------------------------------------------------------"
+		echo -e "\nWIFI connection: \n ------------------------------------------------------------------------------"
 		echo " edit macAddr"
 		ifconfig $WAN down
 		ifconfig $WAN hw ether $MAC
@@ -97,7 +97,7 @@ case $ARG in
 	;;
 	
 	disnet)
-		echo -e "\nWIFI connection off: \n ----------------------------------------------------------------------------------"
+		echo -e "\nWIFI connection off: \n ------------------------------------------------------------------------------"
 		echo " off essid"
 		iwconfig $WAN essid off
 		echo " down $WAN"
@@ -108,32 +108,32 @@ case $ARG in
 	;;
 	
 	show)
-		echo -e "\nWIFI Status: \n ----------------------------------------------------------------------------------"
+		echo -e "\nWIFI Status: \n ------------------------------------------------------------------------------"
 		iwconfig $WAN
-		echo -e "\n IP Info: \n ----------------------------------------------------------------------------------"
+		echo -e "\n IP Info: \n ------------------------------------------------------------------------------"
 		ifconfig $WAN
-		echo -e "\n Routeing status Info: \n ----------------------------------------------------------------------------------"
+		echo -e "\n Routeing status Info: \n ------------------------------------------------------------------------------"
 		route -n
-		echo -e "\n Firewall rule Info: \n ----------------------------------------------------------------------------------"
+		echo -e "\n Firewall rule Info: \n ------------------------------------------------------------------------------"
 		iptables -t nat -vn -L
 		#N2N VPN status check
 		if [ -z "N2NPid" ];then
-			echo -e "\n N2N VPN status : Disable! \n ----------------------------------------------------------------------------------"
+			echo -e "\n N2N VPN status : Disable! \n ------------------------------------------------------------------------------"
 		else
-			echo -e "\n N2N VPN status : Enable! \n ----------------------------------------------------------------------------------"
+			echo -e "\n N2N VPN status : Enable! \n ------------------------------------------------------------------------------"
 		fi
 		#show tor net forward
-		echo -e "\n Show to tor net forward: \n ----------------------------------------------------------------------------------"
+		echo -e "\n Show to tor net forward: \n ------------------------------------------------------------------------------"
 		iptables -t nat -vn -L PREROUTING
 		#login info
-		echo -e "\n Login Info: \n ----------------------------------------------------------------------------------"
+		echo -e "\n Login Info: \n ------------------------------------------------------------------------------"
 		curl -L --config /opt/bin/cu.conf "http://$CUACC/login.do?callback=jQuery17109679617492947727_1455520963393&username=$CUUSER&password=$CUPASS&passwordType=6&wlanuserip=&userOpenAddress=bj&checkbox=0&basname=&setUserOnline=&sap=&macAddr=&bandMacAuth=0&isMacAuth=&basPushUrl=http%253A%252F%252F$CUACC%252F&passwordkey=&_=1455521279832"|awk -F "," '{print "Login status:",$9}'>/tmp/a
 		sed 's/\"//g' /tmp/a
 		echo " "
 	;;
 	
 	login)
-		echo -e "\n Login to ChinaUnicom net: \n ----------------------------------------------------------------------------------"
+		echo -e "\n Login to ChinaUnicom net: \n ------------------------------------------------------------------------------"
 		curl -L --config /opt/bin/cu.conf "http://$CUACC/login.do?callback=jQuery17109679617492947727_1455520963393&username=$CUUSER&password=$CUPASS&passwordType=6&wlanuserip=&userOpenAddress=bj&checkbox=0&basname=&setUserOnline=&sap=&macAddr=&bandMacAuth=0&isMacAuth=&basPushUrl=http%253A%252F%252F$CUACC%252F&passwordkey=&_=1455521279832"|awk -F "," '{print "To login CU",$9}'>/tmp/a
 		sed 's/\"//g' /tmp/a
 		echo " "
@@ -176,7 +176,7 @@ case $ARG in
 				$0
 			fi
 		elif [ "$ARG2" = "show" ];then
-			echo -e "\n --Tor forwarded through network segment------------------------------------------"
+			echo -e "\n --Tor forwarded through network segment--------------------------------------"
 			iptables -t nat -v -n -L PREROUTING
 		else
 				$0
@@ -198,35 +198,34 @@ case $ARG in
 		elif [ "$ARG2" = "stop" ];then
 			iptables -t nat -D POSTROUTING -s $LANIP -o n2n0 -j MASQUERADE
 			sed -i -e '/8.8./d' /etc/resolv.conf
-			route del -net $i netmask 255.255.0.0
-			kill -9 $N2NPid
-			for i in $TARGER
-				do
-					route add -net $i netmask 255.255.0.0 gw $N2NGW
-					echo "Add routeing to $i done !"
-				done
+			#for i in $TARGER
+			#	do
+			#		route Del -net $i netmask 255.255.0.0 gw $N2NGW
+			#		echo "Del routeing to $i done !"
+			#	done
 			#删除某些特定的网络可以写在这里；
 			#route del -net 172.16.0.0 netmask 255.255.0.0 gw 10.1.2.253
+			kill -9 $N2NPid
 		else
 				$0
 		fi
 	;;
 	
 	diagnosic)
-		echo -e "\n WIFI Status: \n ----------------------------------------------------------------------------------"
+		echo -e "\n WIFI Status: \n ------------------------------------------------------------------------------"
 		iwconfig $WAN
-		echo -e "\n IP info: \n ----------------------------------------------------------------------------------"
+		echo -e "\n IP info: \n ------------------------------------------------------------------------------"
 		ifconfig $WAN
-		echo -e "\n routeing status info: \n ----------------------------------------------------------------------------------"
+		echo -e "\n routeing status info: \n ------------------------------------------------------------------------------"
 		route -n 
-		echo -e "\n to ping gateway: \n ----------------------------------------------------------------------------------"
+		echo -e "\n to ping gateway: \n ------------------------------------------------------------------------------"
 		ping -c 5 `route -n|grep $WAN|grep UG|awk '{print $2}'`
 		if [ -z "$N2NPid" ];then
-			echo -e "\n N2N edge no runing: \n ----------------------------------------------------------------------------------"
+			echo -e "\n N2N edge no runing: \n ------------------------------------------------------------------------------"
 			exit 1
 		else
 			echo -e "\n N2N edge runing pid: $N2NPid"
-			echo -e " to N2N gateway: \n ----------------------------------------------------------------------------------"
+			echo -e " to N2N gateway: \n ------------------------------------------------------------------------------"
 			ping -c 5 $N2NGW
 		fi
 	;;
@@ -240,7 +239,7 @@ case $ARG in
 	;;
 	
 	*)
-	echo -e "Usage: $0 {conn|disnet|show|login|tor|n2n|diagnosic} [start|stop|show|status|add|del] \n ----------------------------------------------------------------------------------"
+	echo -e "Usage: $0 {conn|disnet|show|login|tor|n2n|diagnosic} [start|stop|show|status|add|del] \n ------------------------------------------------------------------------------"
 	echo "$0 conn		#进行网络连接"
 	echo "$0 disnet		#停止链接联通"
 	echo "$0 show		#显示网络信息"
